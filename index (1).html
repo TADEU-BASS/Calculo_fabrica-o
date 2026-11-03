@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>System WS | Fabricação da Ferramenta</title>
+<style>
+:root{font-family:Segoe UI,Arial,sans-serif;color:#193551;background:#edf2f8}*{box-sizing:border-box}body{margin:0}header{background:#07509a;color:#fff;padding:24px max(20px,calc((100vw - 870px)/2));box-shadow:0 3px 12px #18395724}header h1{font-size:23px;margin:0 0 5px}header p{margin:0;color:#deecff;font-size:14px}main{max-width:870px;margin:30px auto;padding:0 18px}.card{background:white;border:1px solid #d8e3ef;border-radius:12px;padding:26px;box-shadow:0 5px 20px #12395c0d;margin-bottom:18px}h2{font-size:18px;color:#07509a;margin:0 0 20px}label{display:block;font-size:14px;font-weight:650;margin-bottom:8px}input{width:100%;max-width:520px;border:1px solid #aabed4;border-radius:8px;padding:13px 14px;font-size:19px;color:#15395c;text-transform:uppercase}input:focus{outline:2px solid #77b6f3;outline-offset:1px}.hint{margin-top:9px;color:#637b94;font-size:13px}.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap}button{background:#0769c6;color:#fff;border:0;border-radius:8px;padding:12px 22px;font-size:15px;font-weight:600;cursor:pointer}button.secondary{background:#e6eef7;color:#164a77}.result{display:none}.stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}.stat{text-align:center;background:#eff6ff;border:1px solid #dceafb;border-radius:10px;padding:24px 12px}.stat strong{display:block;font-size:36px;color:#07509a;overflow-wrap:anywhere}.stat span{font-size:14px;color:#54728f}.detail{margin-top:18px;font-size:14px;color:#405b75}.error{display:none;color:#a8222f;background:#fff1f2;padding:12px;border-radius:8px;margin-top:16px}.note{font-size:13px;line-height:1.6;color:#486178;background:#f8fafc;border-left:4px solid #adc5df;padding:14px 18px}.footer{text-align:center;color:#8292a5;font-size:12px;margin:24px 0}@media(max-width:560px){.stats{grid-template-columns:1fr}header{padding:20px}main{margin-top:18px}.card{padding:20px}}
+</style>
+</head>
+<body>
+<header><h1>ATLAS COPCO SYSTEM WS</h1><p>Consulta de semana, mês e ano de fabricação pelo número de série</p></header>
+<main>
+<section class="card"><h2>Identificação da ferramenta</h2>
+<label for="serial">Número de série (Serial Number)</label>
+<input id="serial" autocomplete="off" spellcheck="false" placeholder="Digite ou leia o serial" autofocus>
+<div class="hint">O sistema considera os três primeiros dígitos do serial: A = último dígito do ano; SS = semana.</div>
+<div class="actions"><button id="calculate">Consultar fabricação</button><button id="clear" class="secondary">Limpar</button></div>
+<div class="error" id="error" role="alert"></div></section>
+<section class="card result" id="result" aria-live="polite"><h2>Resultado da consulta</h2>
+<div class="stats"><div class="stat"><strong id="week">—</strong><span>Semana de fabricação</span></div><div class="stat"><strong id="month">—</strong><span>Mês estimado</span></div><div class="stat"><strong id="year">—</strong><span>Ano de fabricação</span></div></div>
+<div class="hint">Mês estimado a partir da quinta-feira da semana de fabricação (padrão ISO).</div><div class="detail">Serial: <b id="outserial"></b> &nbsp; | &nbsp; Código: <b id="outcode"></b></div>
+<div class="actions"><button id="copy" class="secondary">Copiar resultado</button></div></section>
+<section class="note"><b>Regra utilizada:</b> por exemplo, <b>234</b> é interpretado como <b>semana 34 de agosto de 2022</b>. A década é inferida pelo ano atual, escolhendo o ano mais recente com o mesmo último dígito que não esteja no futuro. Essa regra e a posição do código devem ser conferidas com o padrão usado no app Preenchimento e Cotação antes de usar o resultado como informação oficial.</section>
+<div class="footer">Software by Marcos Tadeu Silva</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+function weeksInISOYear(year){let d=new Date(Date.UTC(year,11,28));let day=d.getUTCDay()||7;d.setUTCDate(d.getUTCDate()+4-day);const thursday=d;const jan4=new Date(Date.UTC(year,0,4));jan4.setUTCDate(jan4.getUTCDate()+4-(jan4.getUTCDay()||7));return 1+Math.round((thursday-jan4)/604800000)}
+function monthFromISOWeek(year,week){const jan4=new Date(Date.UTC(year,0,4));const monday=new Date(jan4);monday.setUTCDate(jan4.getUTCDate()-((jan4.getUTCDay()+6)%7)+(week-1)*7);monday.setUTCDate(monday.getUTCDate()+3);return new Intl.DateTimeFormat('pt-BR',{month:'long',timeZone:'UTC'}).format(monday)}
+function calc(){
+ const serial=$('serial').value.trim().toUpperCase();$('error').style.display='none';$('result').style.display='none';
+ const code=(serial.match(/\d/g)||[]).slice(0,3).join('');
+ if(!serial||code.length!==3){$('error').textContent='Informe um serial contendo pelo menos três dígitos.';$('error').style.display='block';return}
+ const week=Number(code.slice(1));const currentYear=new Date().getFullYear();let year=currentYear-(currentYear%10)+Number(code[0]);if(year>currentYear)year-=10;
+ if(week<1||week>weeksInISOYear(year)){$('error').textContent=`Código ${code}: a semana ${String(week).padStart(2,'0')} não existe no ano ${year}. Verifique o serial.`;$('error').style.display='block';return}
+ $('week').textContent=String(week).padStart(2,'0');$('month').textContent=monthFromISOWeek(year,week);$('year').textContent=year;$('outserial').textContent=serial;$('outcode').textContent=code;$('result').style.display='block';
+}
+$('calculate').onclick=calc;$('serial').onkeydown=e=>{if(e.key==='Enter')calc()};$('clear').onclick=()=>{$('serial').value='';$('result').style.display='none';$('error').style.display='none';$('serial').focus()};$('copy').onclick=async()=>{const str=`Serial: ${$('outserial').textContent}\nSemana: ${$('week').textContent}\nMês estimado: ${$('month').textContent}\nAno: ${$('year').textContent}`;try{await navigator.clipboard.writeText(str);$('copy').textContent='Copiado!';setTimeout(()=>$('copy').textContent='Copiar resultado',1500)}catch{window.prompt('Copie o resultado:',str)}};
+</script>
+</body></html>
